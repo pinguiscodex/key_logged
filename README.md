@@ -1,19 +1,20 @@
 # Silent Keylogger for Linux
 
-This is a silent keylogger that tracks every pressed key and writes it to a log file. When a mouse button or the Enter key is pressed, it creates a new line in the log file.
+This is a completely silent keylogger that tracks every pressed key and writes it to a timestamped log file. When a mouse button or the Enter key is pressed, it creates a new line in the log file. The keylogger intelligently handles modifier keys (Shift, Caps Lock) to accurately log the correct characters as they would appear on screen.
 
 ## Features
 
-- Completely silent operation - no console output or visible indicators
-- Logs all keystrokes to timestamped files named `keylog_YYYYMMDD_HHMMSS.txt`
-- Properly handles modifier keys (Shift, Caps Lock) to log correct characters (uppercase/lowercase)
-- Logs special characters correctly based on keyboard state (e.g., `@` when Shift+2 pressed)
-- Creates new lines when Enter key or mouse buttons are pressed
-- Runs invisibly in the background
-- Can be added to Linux autostart applications
-- Cross-distribution compatibility
-- Undetectable by standard monitoring tools
-- Comprehensive error handling without user notification
+- **Completely Silent Operation**: No console output or visible indicators during operation
+- **Timestamped Log Files**: Creates log files named `keylog_YYYYMMDD_HHMMSS.txt` for each session
+- **Intelligent Modifier Key Handling**: Properly tracks Shift, Caps Lock, and AltGr keys to log correct characters
+- **Accurate Character Mapping**: Logs uppercase/lowercase letters and special symbols correctly based on keyboard state
+- **Special Character Support**: Correctly handles shifted symbols (e.g., `@` when Shift+2 pressed, `_` when Shift+- pressed)
+- **Mouse Event Detection**: Creates new lines when mouse buttons are clicked
+- **Enter Key Recognition**: Creates new lines when Enter key is pressed
+- **Invisible Background Operation**: Runs undetectably in the background
+- **Cross-Distribution Compatibility**: Works on all major Linux distributions
+- **Autostart Capability**: Can be added to Linux autostart applications
+- **Robust Error Handling**: Handles errors silently without user notification
 
 ## Files Included
 

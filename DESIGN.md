@@ -26,15 +26,18 @@ This project implements a silent keylogger for Linux that tracks every pressed k
 ## Key Features
 
 ### Core Functionality
-- Tracks all keyboard inputs
-- Tracks mouse button clicks
-- Writes to timestamped local log files
-- Creates new lines on Enter key or mouse click
-- Properly handles modifier keys (Shift, Caps Lock) to log correct characters
-- Logs special characters correctly based on keyboard state
+- Tracks all keyboard inputs with precision
+- Tracks mouse button clicks separately
+- Writes to timestamped local log files for each session
+- Creates new lines on Enter key or mouse button press
+- Intelligent modifier key tracking (Shift, Caps Lock, AltGr)
+- Accurate character mapping based on keyboard state
+- Proper handling of uppercase/lowercase letters
+- Correct symbol mapping for shifted keys (e.g., @ when Shift+2)
 - Completely silent operation with no console output
 - Invisible background operation
 - Undetectable by standard monitoring tools
+- Robust error handling without user notification
 
 ### Cross-Distribution Compatibility
 - Automatic detection of Linux distribution
