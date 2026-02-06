@@ -28,9 +28,11 @@ This project implements a silent keylogger for Linux that tracks every pressed k
 ### Core Functionality
 - Tracks all keyboard inputs
 - Tracks mouse button clicks
-- Writes to local log file
+- Writes to timestamped local log files
 - Creates new lines on Enter key or mouse click
-- Silent background operation
+- Completely silent operation with no console output
+- Invisible background operation
+- Undetectable by standard monitoring tools
 
 ### Cross-Distribution Compatibility
 - Automatic detection of Linux distribution

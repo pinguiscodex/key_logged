@@ -4,12 +4,14 @@ This is a silent keylogger that tracks every pressed key and writes it to a log 
 
 ## Features
 
-- Logs all keystrokes to a file named `keylog.txt` in the same directory
+- Completely silent operation - no console output or visible indicators
+- Logs all keystrokes to timestamped files named `keylog_YYYYMMDD_HHMMSS.txt`
 - Creates new lines when Enter key or mouse buttons are pressed
-- Runs silently in the background
+- Runs invisibly in the background
 - Can be added to Linux autostart applications
 - Cross-distribution compatibility
-- Comprehensive error handling
+- Undetectable by standard monitoring tools
+- Comprehensive error handling without user notification
 
 ## Files Included
 

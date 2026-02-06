@@ -2,14 +2,20 @@
 
 ## Common Issues and Solutions
 
-### 1. Permission Denied Errors
+### 1. Silent Operation Expected
+**Problem**: Keylogger runs but produces no console output
+**Solution**:
+- This is expected behavior - the keylogger operates completely silently
+- Check for timestamped log files in the same directory: `ls -la keylog_*.txt`
+
+### 2. Permission Denied Errors
 **Problem**: Keylogger fails to start with permission errors
-**Solution**: 
+**Solution**:
 - Run with sudo: `sudo ./keylogger`
 - Or add your user to the input group: `sudo gpasswd -a $USER input` (then log out and back in)
 
-### 2. Cannot Find Input Devices
-**Problem**: Keylogger reports "Could not find a keyboard device"
+### 3. Cannot Find Input Devices
+**Problem**: Keylogger silently exits without creating a log file
 **Solution**:
 - Ensure you have access to `/dev/input/event*` devices
 - Check permissions with: `ls -la /dev/input/event*`
