@@ -6,6 +6,8 @@ This is a silent keylogger that tracks every pressed key and writes it to a log 
 
 - Completely silent operation - no console output or visible indicators
 - Logs all keystrokes to timestamped files named `keylog_YYYYMMDD_HHMMSS.txt`
+- Properly handles modifier keys (Shift, Caps Lock) to log correct characters (uppercase/lowercase)
+- Logs special characters correctly based on keyboard state (e.g., `@` when Shift+2 pressed)
 - Creates new lines when Enter key or mouse buttons are pressed
 - Runs invisibly in the background
 - Can be added to Linux autostart applications

