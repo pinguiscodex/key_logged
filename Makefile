@@ -13,5 +13,9 @@ clean:
 install: keylogger
 	sudo cp keylogger /usr/local/bin/
 	sudo chmod +x /usr/local/bin/keylogger
+	# Copy config file to the same directory as the executable if it doesn't exist
+	if [ ! -f /usr/local/bin/keylogger.conf ]; then \
+		sudo cp keylogger.conf /usr/local/bin/; \
+	fi
 
 .PHONY: all clean install

