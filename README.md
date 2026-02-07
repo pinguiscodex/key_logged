@@ -82,6 +82,26 @@ sudo pacman -S mingw-w64-gcc
 
 This creates the Windows executable `keylogger.exe`.
 
+### Comprehensive Build Scripts
+
+For more advanced building, we provide comprehensive build scripts:
+
+```bash
+# Make all scripts executable
+chmod +x build_*.sh
+
+# Build for Linux only
+./build_linux.sh
+
+# Build for Windows (cross-compile)
+./build_windows_full.sh
+
+# Build for all platforms with one command
+./build_all.sh --all
+```
+
+For detailed build instructions, see [BUILDING.md](BUILDING.md).
+
 ## Manual Execution
 
 ### Linux
