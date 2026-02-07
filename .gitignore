@@ -1,0 +1,5 @@
+keylog_*.txt
+*.log
+log_*.txt
+*.tmp
+*.cache
