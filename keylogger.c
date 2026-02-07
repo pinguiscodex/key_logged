@@ -328,7 +328,6 @@ int main() {
     int fd;
     char device_path[256];
     char log_filename[1024];  // Increased size to prevent buffer overflow
-    char timestamp[64];
     struct input_event ev;
     ssize_t n;
     const char* key_char;
@@ -339,10 +338,10 @@ int main() {
     time_t rawtime;
     struct tm *timeinfo;
 
-    // Get current time for log filename
+    // Get current time for log filename (year, month, day, hour, minute - no seconds)
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    strftime(timestamp_str, sizeof(timestamp_str), "%Y%m%d_%H%M%S", timeinfo);
+    strftime(timestamp_str, sizeof(timestamp_str), "%Y%m%d_%H%M", timeinfo);
 
     // Use configured log directory if specified, otherwise use executable directory
     if (config_log_directory[0] != '\0') {
@@ -428,9 +427,13 @@ int main() {
         return 1;
     }
     
+    // Create a more readable timestamp for the log message
+    char readable_timestamp[64];
+    strftime(readable_timestamp, sizeof(readable_timestamp), "%Y-%m-%d %H:%M", timeinfo);
+    
     char start_msg[256];
     strcpy(start_msg, "\n=== Keylogger started at ");
-    strcat(start_msg, timestamp_str);
+    strcat(start_msg, readable_timestamp);
     strcat(start_msg, " ===\n");
     int msg_len = strlen(start_msg);
     write(log_fd, start_msg, msg_len);
@@ -691,10 +694,11 @@ int main() {
     if (log_fd_end != -1) {
         time(&rawtime);
         timeinfo = localtime(&rawtime);
-        strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", timeinfo);
+        char end_readable_timestamp[64];
+        strftime(end_readable_timestamp, sizeof(end_readable_timestamp), "%Y-%m-%d %H:%M", timeinfo);
         char end_msg[128];
         strcpy(end_msg, "\n=== Keylogger stopped at ");
-        strcat(end_msg, timestamp);
+        strcat(end_msg, end_readable_timestamp);
         strcat(end_msg, " ===\n");
         int end_len = strlen(end_msg);
         write(log_fd_end, end_msg, end_len);
