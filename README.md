@@ -22,7 +22,6 @@ This is a completely silent keylogger that tracks every pressed key and writes i
 - `Makefile`: For compiling the keylogger
 - `keylogger.service`: Systemd service file
 - `install.sh`: Installation script
-- `test_keylogger.sh`: Testing script
 - `README.md`: This file
 
 ## Prerequisites
@@ -156,13 +155,6 @@ Or if running as a systemd service:
 sudo systemctl stop keylogger
 ```
 
-## Testing
-
-Run the test suite to verify functionality:
-
-```bash
-./test_keylogger.sh
-```
 
 ## Security Considerations
 

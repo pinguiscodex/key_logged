@@ -18,7 +18,6 @@ This project implements a silent keylogger for Linux that tracks every pressed k
 
 ### Automation Scripts
 8. `install.sh` - Distribution-aware installation script
-9. `test_keylogger.sh` - Comprehensive testing suite
 
 ### System Integration
 10. `keylogger.service` - Systemd service file for system-wide installation
@@ -69,21 +68,6 @@ This project implements a silent keylogger for Linux that tracks every pressed k
 - Minimal resource usage
 - Clean shutdown handling
 
-## Testing Framework
-
-### Automated Tests
-- Binary existence verification
-- Compilation validation
-- Runtime functionality checks
-- Permission verification
-- Distribution compatibility checks
-
-### Manual Testing Procedures
-- Basic functionality test
-- Autostart verification
-- Log format validation
-- Performance monitoring
-
 ## Deployment Methods
 
 ### Method 1: User Autostart (Recommended)
@@ -97,7 +81,6 @@ This project implements a silent keylogger for Linux that tracks every pressed k
 - More complex setup but broader access
 
 ### Method 3: Manual Execution
-- For testing and debugging
 - Direct control over execution
 
 ## Maintenance

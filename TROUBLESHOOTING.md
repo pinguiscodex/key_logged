@@ -103,24 +103,6 @@ The keylogger requires access to input devices which typically requires root pri
    sudo udevadm trigger
    ```
 
-## Testing Procedures
-
-### Basic Functionality Test
-1. Compile: `make`
-2. Run for 10 seconds: `timeout 10s ./keylogger &`
-3. Check log file: `cat keylog.txt`
-4. Verify startup message is present
-
-### Autostart Test
-1. Install using: `./install.sh`
-2. Reboot or log out and back in
-3. Verify process is running: `ps aux | grep keylogger`
-4. Check log file after some activity
-
-### Log Verification
-- Look for timestamped entries
-- Verify new lines appear after Enter key presses
-- Check for mouse button indicators
 
 ## Performance Monitoring
 
