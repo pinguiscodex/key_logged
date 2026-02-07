@@ -487,7 +487,7 @@ int main() {
                         }
                     } else if (ev.code == KEY_CAPSLOCK && ev.value == 1) {
                         caps_lock_on = !caps_lock_on;  // Toggle caps lock on press
-                    } else if (ev.code == KEY_RIGHTALT) {  // AltGr on many keyboards
+                    } else if (ev.code == KEY_LEFTALT || ev.code == KEY_RIGHTALT) {  // AltGr or Alt keys
                         if (ev.value == 1) {  // Key pressed
                             alt_gr_pressed = 1;
                         } else if (ev.value == 0) {  // Key released
