@@ -53,6 +53,35 @@ sudo pacman -S gcc make
 ### Windows
 For Windows, you can compile using MinGW-w64 or Visual Studio. The code uses Windows API hooks for keylogging functionality.
 
+## Building Executables
+
+### Linux
+```bash
+make
+```
+
+This creates the Linux executable `keylogger`.
+
+### Windows
+To build for Windows from Linux, you need MinGW-w64 cross-compiler:
+
+```bash
+# Install MinGW-w64 cross-compiler
+# On Ubuntu/Debian:
+sudo apt-get install gcc-mingw-w64
+
+# On CentOS/RHEL/Fedora:
+sudo yum install mingw64-gcc mingw32-gcc
+
+# On Arch Linux:
+sudo pacman -S mingw-w64-gcc
+
+# Build Windows executable
+./build_windows.sh
+```
+
+This creates the Windows executable `keylogger.exe`.
+
 ## Manual Execution
 
 ### Linux
@@ -134,6 +163,12 @@ This keylogger is designed to work on both Linux and Windows platforms:
 - Requires administrator privileges for global keyboard monitoring
 
 The installation script automatically detects your distribution and installs the appropriate dependencies.
+
+## Available Executables
+
+Pre-built executables are available for both platforms:
+- `keylogger` - Linux executable
+- `keylogger.exe` - Windows executable
 
 ## Log File Location
 
