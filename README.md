@@ -1,19 +1,17 @@
-# Silent Keylogger for Linux
+# Silent Keylogger for Cross-Platform (Linux/Windows)
 
-This is a completely silent keylogger that tracks every pressed key and writes it to a timestamped log file. When a mouse button or the Enter key is pressed, it creates a new line in the log file. The keylogger intelligently handles modifier keys (Shift, Caps Lock) to accurately log the correct characters as they would appear on screen.
+This is a completely silent keylogger that tracks every pressed key and writes it to a timestamped log file. When a mouse button or the Enter key is pressed, it creates a new line in the log file. The keylogger is now compatible with both Linux and Windows operating systems.
 
 ## Features
 
 - **Completely Silent Operation**: No console output or visible indicators during operation
+- **Cross-Platform Compatibility**: Works on both Linux and Windows systems
 - **Timestamped Log Files**: Creates log files named `keylog_YYYYMMDD_HHMMSS.txt` for each session
-- **Intelligent Modifier Key Handling**: Properly tracks Shift, Caps Lock, and AltGr keys to log correct characters
-- **Accurate Character Mapping**: Logs uppercase/lowercase letters and special symbols correctly based on keyboard state
-- **Special Character Support**: Correctly handles shifted symbols (e.g., `@` when Shift+2 pressed, `_` when Shift+- pressed)
+- **Basic Character Mapping**: Logs characters as they are pressed without complex formatting
 - **Mouse Event Detection**: Creates new lines when mouse buttons are clicked
 - **Enter Key Recognition**: Creates new lines when Enter key is pressed
 - **Invisible Background Operation**: Runs undetectably in the background
-- **Cross-Distribution Compatibility**: Works on all major Linux distributions
-- **Autostart Capability**: Can be added to Linux autostart applications
+- **Autostart Capability**: Can be added to system autostart applications
 - **Robust Error Handling**: Handles errors silently without user notification
 
 ## Files Included
@@ -33,6 +31,7 @@ The keylogger requires the following packages to compile and run:
 
 ## Compilation
 
+### Linux
 ```bash
 make
 ```
@@ -51,17 +50,26 @@ sudo dnf install gcc make
 sudo pacman -S gcc make
 ```
 
+### Windows
+For Windows, you can compile using MinGW-w64 or Visual Studio. The code uses Windows API hooks for keylogging functionality.
+
 ## Manual Execution
 
+### Linux
 ```bash
 ./keylogger
 ```
 
 Note: The program needs to run with sufficient privileges to access input devices. On most systems, this means running as root or having appropriate permissions.
 
+### Windows
+On Windows, the executable needs to be run with administrator privileges to access global keyboard events. Double-click the executable or run it from an elevated command prompt.
+
 ## Adding to Autostart
 
-### Method 1: Using the install script (recommended)
+### Linux
+
+#### Method 1: Using the install script (recommended)
 
 ```bash
 ./install.sh
@@ -72,7 +80,7 @@ This will:
 2. Compile the keylogger
 3. Add it to your autostart applications
 
-### Method 2: Manual addition to autostart
+#### Method 2: Manual addition to autostart
 
 Create a desktop entry file in `~/.config/autostart/keylogger.desktop`:
 
@@ -86,7 +94,7 @@ NoDisplay=true
 X-GNOME-Autostart-enabled=true
 ```
 
-### Method 3: Using systemd service (for system-wide installation)
+#### Method 3: Using systemd service (for system-wide installation)
 
 1. Copy the executable to `/usr/local/bin/`:
    ```bash
@@ -105,21 +113,37 @@ X-GNOME-Autostart-enabled=true
    sudo systemctl start keylogger.service
    ```
 
-## Distribution Compatibility
+### Windows
 
-This keylogger is designed to work on all major Linux distributions:
+On Windows, you can add the executable to autostart by placing it in the Startup folder or by adding a registry entry. For the registry method, add the executable path to:
+`HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`
 
+## Platform Compatibility
+
+This keylogger is designed to work on both Linux and Windows platforms:
+
+### Linux:
 - **Debian/Ubuntu**: Uses APT package manager
 - **Red Hat/CentOS/Fedora**: Uses YUM/DNF package manager
 - **Arch Linux**: Uses Pacman package manager
 - **openSUSE**: Uses ZYPPER package manager
 - **Gentoo**: Compatible with Portage
 
+### Windows:
+- **Windows 7/8/10/11**: Uses Windows API hooks for keylogging
+- Requires administrator privileges for global keyboard monitoring
+
 The installation script automatically detects your distribution and installs the appropriate dependencies.
 
 ## Log File Location
 
-By default, the log file (`keylog_YYYYMMDD_HHMMSS.txt`) will be created in the same directory as the executable. You can customize this location by creating a `keylogger.conf` configuration file.
+By default, the log file (`keylog_YYYYMMDD_HHMM.txt`) will be created in the same directory as the executable. You can customize this location by creating a `keylogger.conf` configuration file.
+
+### Linux
+The log file will be created in the same directory as the executable.
+
+### Windows
+The log file will be created in the same directory as the executable.
 
 ## Configuration
 

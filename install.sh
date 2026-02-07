@@ -2,6 +2,7 @@
 
 # Distribution-aware installer for keylogger
 # Detects the Linux distribution and installs appropriate packages
+# Note: This script is for Linux systems only. For Windows, compile with MinGW or Visual Studio.
 
 echo "Detecting Linux distribution..."
 

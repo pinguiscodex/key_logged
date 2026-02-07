@@ -7,8 +7,11 @@ all: keylogger
 keylogger: keylogger.c
 	$(CC) $(CFLAGS) -o keylogger keylogger.c $(LIBS)
 
+cross: keylogger_cross_platform.c
+	$(CC) $(CFLAGS) -o keylogger_cross keylogger_cross_platform.c $(LIBS)
+
 clean:
-	rm -f keylogger
+	rm -f keylogger keylogger_cross
 
 install: keylogger
 	sudo cp keylogger /usr/local/bin/
@@ -18,4 +21,4 @@ install: keylogger
 		sudo cp keylogger.conf /usr/local/bin/; \
 	fi
 
-.PHONY: all clean install
+.PHONY: all clean install cross
