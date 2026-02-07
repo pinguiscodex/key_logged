@@ -413,10 +413,20 @@ int main() {
                                     // Dynamic formatting enabled - use modifier key states
                                     if (ev.code >= KEY_A && ev.code <= KEY_Z) {
                                         // Alphabet keys - handle shift and caps lock
-                                        if ((shift_pressed || caps_lock_on) && !alt_gr_pressed) {
-                                            actual_char[0] = 'A' + (ev.code - KEY_A);
-                                        } else if (!alt_gr_pressed) {
-                                            actual_char[0] = 'a' + (ev.code - KEY_A);
+                                        // Normal behavior: 
+                                        // - If caps lock is on and shift not pressed -> uppercase
+                                        // - If caps lock is off and shift pressed -> uppercase  
+                                        // - If caps lock is on and shift pressed -> lowercase (shift overrides caps)
+                                        // - If caps lock is off and shift not pressed -> lowercase
+                                        if (!alt_gr_pressed) {
+                                            // Determine if this should be uppercase based on caps lock and shift state
+                                            int is_uppercase = (caps_lock_on && !shift_pressed) || (!caps_lock_on && shift_pressed);
+                                            
+                                            if (is_uppercase) {
+                                                actual_char[0] = 'A' + (ev.code - KEY_A);
+                                            } else {
+                                                actual_char[0] = 'a' + (ev.code - KEY_A);
+                                            }
                                         } else {
                                             // AltGr combinations - use original mapping
                                             strcpy(actual_char, key_char);
