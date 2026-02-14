@@ -2,6 +2,12 @@
 
 ## Latest Release
 
+### Version 2.1 - Enhanced Configuration Support
+- Added directory validation and creation for custom log directories
+- Implemented permission checking for log directories
+- Added fallback mechanism when custom directory is inaccessible
+- Improved configuration documentation
+
 ### Version 2.0 - Cross-Platform Support
 - Added Windows compatibility using Windows API hooks
 - Maintained Linux compatibility with input device monitoring
