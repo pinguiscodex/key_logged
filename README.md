@@ -206,10 +206,13 @@ The keylogger can be configured using a `keylogger.conf` file in the same direct
 
 - `log_directory`: Specify a custom directory for log files (leave empty or use '.' for executable directory)
 
+The keylogger will automatically create the specified directory if it doesn't exist and will check for write permissions. If the custom directory is not accessible, it will fall back to using the executable's directory and display a warning.
+
 Example configuration file:
 ```
 # Log Directory - Specify where log files should be stored
 # Leave empty or use '.' to store in the same directory as the executable
+# The keylogger will create the directory if it doesn't exist and has permission
 # Example: /var/log/keylogger/ or /home/user/logs/
 log_directory=
 ```
